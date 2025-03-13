@@ -1,41 +1,26 @@
-import heapq
+n = 5
+mas =[[13,4],
+      [15,1],
+      [11,5],
+      [12,3],
+      [10,3]]
 
-def min_machines(N, cargoes):
-    if N == 0:
-        return 0
-    
-    # Сортируем грузы по времени прибытия
-    cargoes.sort()
-    
-    # Минимальная куча для хранения времени окончания обработки
-    heap = []
-    
-    for Ti, Li in cargoes:
-        if heap and heap[0] <= Ti:
-            # Освобождаем аппарат и используем его для текущего груза
-            heapq.heappop(heap)
-        # Добавляем время окончания обработки текущего груза
-        heapq.heappush(heap, Ti + Li)
-    
-    # Количество аппаратов равно размеру кучи
-    return len(heap)
+mas_sort = sorted(mas) 
 
-def main():
-    import sys
-    input = sys.stdin.read
-    data = input().split()
-    
-    N = int(data[0])
-    cargoes = []
-    index = 1
-    for _ in range(N):
-        Ti = int(data[index])
-        Li = int(data[index + 1])
-        cargoes.append((Ti, Li))
-        index += 2
-    
-    result = min_machines(N, cargoes)
-    print(result)
+mas_t = []
 
-if __name__ == "__main__":
-    main()
+for i in range(n):
+
+    fl = True
+
+    for j in range(len(mas_t)):
+        if mas_sort[i][0] >= mas_t[j]:
+            mas_t[j] = mas_sort[i][0] + mas_sort[i][1]
+            fl = False
+            break
+
+    if fl:
+        mas_t.append(mas_sort[i][0] + mas_sort[i][1])
+
+print(len(mas_t))
+print(mas_t)
