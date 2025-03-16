@@ -1,85 +1,92 @@
-# Склад
-
 def main():
-    import sys
-    input = sys.stdin.read
-    data = input().split()
+    data = []
+    test_input = (
+            "3 5\n"      # 3 отсека, 5 грузов
+            "3 2 10\n" # Вместимости отсеков
+            "1 1 6\n"   # Груз 1
+            "3 2 8\n"  
+            "9 3 5\n"    
+            "2 4 9\n"  
+            "12 7 10\n"   
+    )
+    data = test_input.strip().split()
     
-    idx = 0
-    n = int(data[idx])
-    m = int(data[idx + 1])
-    idx += 2
+    it = iter(data)
+    n = int(next(it))
+    m = int(next(it))
+    capacities = [int(next(it)) for _ in range(n)]
+    free = capacities[:]  # Копия свободного пространства
+    cells = [[] for _ in range(n)]
+    cargo_placement = {}
     
-    c = list(map(int, data[idx:idx + n]))
-    idx += n
+    events = []
+    for cargo_num in range(1, m+1):
+        size = int(next(it))
+        a = int(next(it))
+        d = int(next(it))
+        events.append((a, 'arrive', cargo_num, size, d))
+        events.append((d, 'depart', cargo_num))
+    events.sort(key=lambda x: x[0])
     
-    cargo = []
-    for i in range(m):
-        s = int(data[idx])
-        a = int(data[idx + 1])
-        d = int(data[idx + 2])
-        cargo.append({'id': i + 1, 'size': s, 'arrival': a, 'departure': d})
-        idx += 3
+    actions = []
     
-    # Инициализация отсеков
-    cells = [{'id': i + 1, 'capacity': c[i], 'used': 0, 'cargos': []} for i in range(n)]
+    for event in events:
+        time = event[0]
+        etype = event[1]
+        if etype == 'depart':
+            cargo_num = event[2]
+            if cargo_num in cargo_placement:
+                cell_index, size = cargo_placement[cargo_num]
+                cells[cell_index].remove((cargo_num, size))
+                free[cell_index] += size
+                del cargo_placement[cargo_num]
+                actions.append(f"take cargo {cargo_num} from cell {cell_index+1}")
+        elif etype == 'arrive':
+            cargo_num, size, d = event[2], event[3], event[4]
+            best_cell = None
+            best_free = None
+            for i in range(n):
+                if free[i] >= size:
+                    if best_cell is None or free[i] < best_free or (free[i] == best_free and i < best_cell):
+                        best_cell = i
+                        best_free = free[i]
+            if best_cell is not None:
+                free[best_cell] -= size
+                cells[best_cell].append((cargo_num, size))
+                cargo_placement[cargo_num] = (best_cell, size)
+                actions.append(f"put cargo {cargo_num} to cell {best_cell+1}")
+            else:
+                candidate = None
+                for src in range(n):
+                    for (cnum, csize) in cells[src]:
+                        if free[src] + csize >= size:
+                            for dest in range(n):
+                                if dest == src:
+                                    continue
+                                if free[dest] >= csize:
+                                    new_free_source = free[src] + csize
+                                    new_free_dest = free[dest] - csize
+                                    candidate_tuple = (csize, new_free_source, new_free_dest, cnum, dest, src)
+                                    if candidate is None or candidate_tuple < candidate[0]:
+                                        candidate = (candidate_tuple, cnum, src, dest, csize)
+                if candidate is not None:
+                    _, moved_cargo, src, dest, moved_size = candidate
+                    cells[src].remove((moved_cargo, moved_size))
+                    free[src] += moved_size
+                    cells[dest].append((moved_cargo, moved_size))
+                    free[dest] -= moved_size
+                    cargo_placement[moved_cargo] = (dest, moved_size)
+                    actions.append(f"move cargo {moved_cargo} from cell {src+1} to cell {dest+1}")
+                    free[src] -= size
+                    cells[src].append((cargo_num, size))
+                    cargo_placement[cargo_num] = (src, size)
+                    actions.append(f"put cargo {cargo_num} to cell {src+1}")
+                else:
+                    actions.append(f"cargo {cargo_num} cannot be stored")
     
-    # Сортировка грузов по времени прибытия
-    cargo.sort(key=lambda x: x['arrival'])
-    
-    # Обработка грузов
-    for cg in cargo:
-        # Поиск отсека с достаточным свободным местом
-        suitable_cells = []
-        for cell in cells:
-            if cell['capacity'] - cell['used'] >= cg['size']:
-                suitable_cells.append(cell)
-        
-        if suitable_cells:
-            # Выбираем отсек с наименьшим свободным местом
-            selected_cell = min(suitable_cells, key=lambda x: x['capacity'] - x['used'])
-            selected_cell['used'] += cg['size']
-            selected_cell['cargos'].append(cg['id'])
-            print(f"put cargo {cg['id']} to cell {selected_cell['id']}")
-        else:
-            # Попытка перемещения грузов
-            moved = False
-            for cell in cells:
-                for cargo_id in cell['cargos']:
-                    # Находим груз, который можно переместить
-                    cargo_to_move = next((x for x in cargo if x['id'] == cargo_id), None)
-                    if cargo_to_move:
-                        # Ищем отсек, куда можно переместить этот груз
-                        for target_cell in cells:
-                            if target_cell['id'] != cell['id'] and target_cell['capacity'] - target_cell['used'] >= cargo_to_move['size']:
-                                # Проверяем, освободит ли это место для нового груза
-                                if cell['capacity'] - (cell['used'] - cargo_to_move['size']) >= cg['size']:
-                                    # Перемещаем груз
-                                    cell['used'] -= cargo_to_move['size']
-                                    target_cell['used'] += cargo_to_move['size']
-                                    cell['cargos'].remove(cargo_to_move['id'])
-                                    target_cell['cargos'].append(cargo_to_move['id'])
-                                    print(f"move cargo {cargo_to_move['id']} from cell {cell['id']} to cell {target_cell['id']}")
-                                    # Размещаем новый груз
-                                    cell['used'] += cg['size']
-                                    cell['cargos'].append(cg['id'])
-                                    print(f"put cargo {cg['id']} to cell {cell['id']}")
-                                    moved = True
-                                    break
-                        if moved:
-                            break
-                if moved:
-                    break
-            if not moved:
-                print(f"cargo {cg['id']} cannot be stored")
-    
-    # Удаление грузов по времени
-    for cg in cargo:
-        for cell in cells:
-            if cg['id'] in cell['cargos']:
-                cell['used'] -= cg['size']
-                cell['cargos'].remove(cg['id'])
-                print(f"take cargo {cg['id']} from cell {cell['id']}")
+    for act in actions:
+        print(act)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
+
