@@ -1,0 +1,47 @@
+def min_remove_to_make_valid_brackets(seq):
+    n = len(seq)
+    dp = [[0] * n for _ in range(n)]
+    
+    brackets = {'(': ')', '[': ']', '{': '}'}
+
+    # Заполняем DP-таблицу снизу вверх, от коротких подстрок к длинным
+    for length in range(2, n + 1):  # длина подстроки
+        for i in range(n - length + 1):
+            j = i + length - 1
+            # если i и j — парные скобки и внутренняя часть тоже корректна
+            if seq[i] in brackets and brackets[seq[i]] == seq[j]:
+                dp[i][j] = dp[i + 1][j - 1] + 2
+            # проверяем все возможные разбиения подстроки
+            for k in range(i, j):
+                dp[i][j] = max(dp[i][j], dp[i][k] + dp[k + 1][j])
+
+    # Восстанавливаем ПСП по таблице dp
+    def build(i, j):
+        if i > j:
+            return ''
+        if i == j:
+            return ''
+        if seq[i] in brackets and brackets[seq[i]] == seq[j] and dp[i][j] == dp[i + 1][j - 1] + 2:
+            return seq[i] + build(i + 1, j - 1) + seq[j]
+        for k in range(i, j):
+            if dp[i][j] == dp[i][k] + dp[k + 1][j]:
+                return build(i, k) + build(k + 1, j)
+        return ''
+
+    result = build(0, n - 1)
+    return result
+
+
+# Пример использования:
+sequence = "({[)]}){}["
+result = min_remove_to_make_valid_brackets(sequence)
+print("Изначальная последовательность:", sequence)
+print("Правильная скобочная последовательность:", result)
+print("Удалено скобок:", len(sequence) - len(result))
+
+# Это решение работает следующим образом:
+# Мы используем стек для отслеживания открывающих скобок.
+# Проходим по строке и для каждой закрывающей скобки проверяем, есть ли соответствующая открывающая скобка на вершине стека.
+# Если скобки не совпадают или стек пуст, помечаем закрывающую скобку на удаление.
+# После прохода по строке все оставшиеся в стеке открывающие скобки также помечаются на удаление (так как для них нет парных закрывающих).
+# В конце собираем строку, исключая все помеченные скобки.
